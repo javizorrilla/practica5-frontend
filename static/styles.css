@@ -12,6 +12,10 @@ body {
     color: #1630BE;
     text-align: center;
   }
+
+  h2 {
+    text-align: center;
+  }
 }
 
 .layout {
@@ -80,7 +84,6 @@ body {
 
 .films-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
   margin-top: 20px;
 }
@@ -88,7 +91,7 @@ body {
 .film-container {
   border: 1px solid #ccc;
   padding: 16px;
-  background-color: #f9f9f9;
+  background-color: white;
 }
 
 .film-attributes {
@@ -97,7 +100,7 @@ body {
 }
 
 .film-attributes img {
-  align-items: center;
   width: 70%;
   height: auto;
+  border-radius: 20%;
 }

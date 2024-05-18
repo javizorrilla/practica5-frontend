@@ -21,108 +21,124 @@ const FilmsList: FunctionComponent<FilmsProps> = ({ filmArray }) => {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [newProjectName, setNewProjectName] = useState<string>("");
   const [selectedProject, setSelectedProject] = useState<string>("");
+  const [currentFilm, setCurrentFilm] = useState<Film | null>(null);
 
-  const addFilmtoProject = (film: Film, project: Project) => {
+  const addFilmToProject = (film: Film, project: Project) => {
     project.filmsID.push(film._id);
-    setProjects(projects.map((p) => p.name ? project : p));
+    setProjects(projects.map((p) => (p.name === project.name ? project : p)));
     console.log(`Added film ${film.name} to project ${project.name}`);
   };
 
-  const saveProjects = async (projects: Project[]) => {
-    try {
-    const response = await fetch("https://filmapi.vercel.app/api/projects", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({projects})
-    });
-
-    if (!response || response.status !== 200) {
-      throw new Error("Failed to save projects");
-    }
-  } catch(error) {
-    console.error("Error saving projects: ", error);
-    throw error;
-  }
-}
-
-  // Create a new project. At the start will be empty, then we can add films to it
-  const createProject = () => {
+  const createProject = async () => {
     const newProject = {
       name: newProjectName,
       filmsID: [],
     };
     const updatedProjects = [...projects, newProject];
-    setProjects([...projects, newProject]);
+    setProjects(updatedProjects);
     setShowModal(false);
     setNewProjectName("");
-    saveProjects(updatedProjects);
+    await saveProjects(updatedProjects);
   };
 
-  // Select a project to add films to it
   const selectProject = () => {
     if (selectedProject !== "") {
       const project = projects.find((p) => p.name === selectedProject);
-      if (project) {
-        console.log(`Selected project: ${selectedProject}`);
+      if (project && currentFilm) {
+        addFilmToProject(currentFilm, project);
+        setShowModal(false);
       }
     }
-    setShowModal(true);
-    setSelectedProject("");
   };
 
-  const brands = Array.from(new Set(filmArray.map((film) => film.brand)))
-    .sort(); // Brands alphabetically ordered
+  const saveProjects = async (projects: Project[]) => {
+    try {
+      const fetchProjects = await fetch("https://filmapi.vercel.app/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ projects }),
+      });
+      const fetchResponseJson = await fetchProjects.json();
+      console.log("Projects saved successfully", fetchResponseJson);
+    } catch (error) {
+      console.error("Error saving projects: ", error);
+      throw error;
+    }
+  };
+
+  const brands = Array.from(new Set(filmArray.map((film) => film.brand))).sort(); // Brands alphabetically ordered
   const isos = Array.from(new Set(filmArray.map((film) => film.iso))).sort(); // ISOs ascendant ordered
 
-  const filmsFilter = filmArray.filter((film) => {
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch("https://filmapi.vercel.app/api/projects");
+        const data = await response.json();
+        setProjects(data.projects);
+      } catch (error) {
+        console.error("Error fetching projects: ", error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    const filteredFilms = filmArray.filter((film) => {
+      return !selectedISO || film.iso.toString() === selectedISO;
+    });
+
+    const hasFormat120 = filteredFilms.some((film) => film.formatOneTwenty);
+    const hasFormat35 = filteredFilms.some((film) => film.formatThirtyFive);
+
+    setSelectedFormat120(hasFormat120);
+    setSelectedFormat35(hasFormat35);
+  }, [selectedISO, filmArray]);
+
+  const filmsFilter = films.filter((film) => {
     return (
       (!selectedBrand || film.brand === selectedBrand) &&
       (!selectedISO || film.iso.toString() === selectedISO) &&
       (!selectedFormat120 || film.formatOneTwenty === selectedFormat120) &&
       (!selectedFormat35 || film.formatThirtyFive === selectedFormat35) &&
       (!selectedColor || film.color === selectedColor) &&
-      (!selectedName ||
-        film.name.toLowerCase().includes(selectedName.toLowerCase()))
+      (!selectedName || film.name.toLowerCase().includes(selectedName.toLowerCase()))
     );
   });
-
-  useEffect(() => {
-    setFilms(filmArray);
-  }, [films]);
 
   return (
     <div>
       <h1>FILMS</h1>
       <div>
-        <label for="brand">Select a brand:</label>
+        <label htmlFor="brand">Select a brand:</label>
         <select
           value={selectedBrand}
           onChange={(e) => setSelectedBrand(e.currentTarget.value)}
         >
           <option value="">All brands</option>
-          {brands.map((brand) => {
-            return <option key={brand} value={brand}>{brand}</option>;
-          })}
+          {brands.map((brand) => (
+            <option key={brand} value={brand}>{brand}</option>
+          ))}
         </select>
       </div>
 
       <div>
-        <label for="iso">Select an ISO:</label>
+        <label htmlFor="iso">Select an ISO:</label>
         <select
           value={selectedISO}
           onChange={(e) => setSelectedISO(e.currentTarget.value)}
         >
           <option value="">All ISOs</option>
-          {isos.map((iso) => {
-            return <option key={iso} value={iso}>{iso}</option>;
-          })}
+          {isos.map((iso) => (
+            <option key={iso} value={iso}>{iso}</option>
+          ))}
         </select>
       </div>
 
       <div>
-        <label for="format120">Select 120 format:</label>
+        <label htmlFor="format120">Select 120 format:</label>
         <input
           type="checkbox"
           checked={selectedFormat120}
@@ -131,7 +147,7 @@ const FilmsList: FunctionComponent<FilmsProps> = ({ filmArray }) => {
       </div>
 
       <div>
-        <label for="format35">Select 35 format:</label>
+        <label htmlFor="format35">Select 35 format:</label>
         <input
           type="checkbox"
           checked={selectedFormat35}
@@ -140,7 +156,7 @@ const FilmsList: FunctionComponent<FilmsProps> = ({ filmArray }) => {
       </div>
 
       <div>
-        <label for="color">Select color:</label>
+        <label htmlFor="color">Select color:</label>
         <input
           type="checkbox"
           checked={selectedColor}
@@ -149,69 +165,67 @@ const FilmsList: FunctionComponent<FilmsProps> = ({ filmArray }) => {
       </div>
 
       <div>
-        <label for="name">Select film name (then enter to search):</label>
+        <label htmlFor="name">Select film name (then enter to search):</label>
         <input
           type="text"
           value={selectedName}
           onChange={(e) => setSelectedName(e.currentTarget.value)}
         />
       </div>
-      <div class="films-grid">
-        {filmsFilter.length > 0
-          ? filmsFilter.map((f) => {
-            return (
-              <div key={f._id} class="film-item">
-                <ShowFilms
-                  film={f}
-                />
-                <button onClick={() => setShowModal(true)}>Add film to Project</button>
-              </div>
-            );
-          })
-          : (
-            <strong>
-              <p>No films found with the selected properties!</p>
-            </strong>
-          )}
+
+      <div className="films-grid">
+        {filmsFilter.length > 0 ? (
+          filmsFilter.map((f) => (
+            <div key={f._id} className="film-item">
+              <ShowFilms film={f} />
+              <button onClick={() => {
+                setCurrentFilm(f);
+                setShowModal(true);
+              }}>Add film to Project</button>
+            </div>
+          ))
+        ) : (
+          <strong>
+            <p>No films found with the selected properties!</p>
+          </strong>
+        )}
       </div>
 
       {showModal && (
-        <div class="modal">
-          <div class="modal-content">
-            <span class="close" onClick={() => setShowModal(false)}>
+        <div className="modal">
+          <div className="modal-content">
+            <span className="close" onClick={() => setShowModal(false)}>
               &times;
             </span>
             <h2>Add film to project</h2>
-            {projects.length > 0
-              ? (
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.currentTarget.value)}
-                >
-                  <option value="">Select an existing project</option>
-                  {projects.map((project) => (
-                    <option value={project.name}>{project.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <div>
-                  <input
-                    type="text"
-                    value={newProjectName}
-                    placeholder="Enter new project name"
-                    onChange={(e) => setNewProjectName(e.currentTarget.value)}
-                  />
-                </div>
-              )}
+            {projects.length > 0 ? (
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.currentTarget.value)}
+              >
+                <option value="">Select an existing project</option>
+                {projects.map((project) => (
+                  <option key={project.name} value={project.name}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div>
+                <input
+                  type="text"
+                  value={newProjectName}
+                  placeholder="Enter new project name"
+                  onChange={(e) => setNewProjectName(e.currentTarget.value)}
+                />
+              </div>
+            )}
             <button onClick={createProject}>Create Project</button>
-            {projects && <button onClick={() => {
-              const project = projects.find((p) => p.name === selectedProject);
-              if(project) {
-                filmsFilter.forEach(film => addFilmtoProject(film, project));
-                setShowModal(false);
-              }
-              }}>Add to selected project</button>
-            }
+            {projects && (
+              <button onClick={selectProject}>
+                Add to selected project
+              </button>
+            )}
           </div>
         </div>
       )}
